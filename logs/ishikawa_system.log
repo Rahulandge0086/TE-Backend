@@ -13,3 +13,9 @@
 2026-05-10 02:12:57,362 - ishikawa_system.src.database.supabase_save - INFO - save_analysis:89 - Prisma: ishikawa saved   id=593f00dd-d353-4233-ba7d-408b1c1c3941
 2026-05-10 02:12:58,127 - ishikawa_system.src.database.supabase_save - INFO - save_analysis:113 - Prisma: five_whys saved  id=b0641298-b6aa-41c0-a91a-b5c4fedc46d0
 2026-05-10 02:16:20,412 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=12)
+2026-05-10 15:01:44,860 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=10)
+2026-05-10 15:01:44,978 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=10)
+2026-05-10 15:01:44,986 - ishikawa_system.src.api.app - INFO - create_application:86 - FastAPI application created
+2026-05-10 15:04:51,039 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=10)
+2026-05-10 15:04:51,156 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=10)
+2026-05-10 15:04:51,163 - ishikawa_system.src.api.app - INFO - create_application:86 - FastAPI application created

@@ -1,0 +1,20 @@
+2026-05-10 15:34:06,813 - ishikawa_system.__main__ - INFO - main:141 - Ishikawa Knowledge System starting... (Log level: INFO)
+2026-05-10 15:34:06,822 - ishikawa_system.__main__ - INFO - run_server:50 - Starting Ollama server in background...
+2026-05-10 15:34:06,823 - ishikawa_system.__main__ - INFO - run_server:59 - Ollama server start signal sent successfully.
+2026-05-10 15:34:06,823 - ishikawa_system.__main__ - INFO - run_server:63 - Starting FastAPI server...
+2026-05-10 15:34:06,932 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=10)
+2026-05-10 15:34:07,026 - ishikawa_system.src.llm.client - INFO - __init__:42 - Initialized Ollama client for model qwen2.5:7b (num_gpu=-1, num_thread=10)
+2026-05-10 15:34:07,040 - ishikawa_system.src.api.app - INFO - create_application:86 - FastAPI application created
+INFO:     Started server process [13635]
+INFO:     Waiting for application startup.
+2026-05-10 15:34:07,040 - ishikawa_system.src.api.app - INFO - lifespan:23 - Starting Ishikawa Knowledge System API
+2026-05-10 15:34:07,040 - ishikawa_system.src.api.app - INFO - lifespan:26 - API configured for 0.0.0.0:8000
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-05-10 15:34:20,942 - ishikawa_system.src.database.prisma_client - INFO - get_prisma:22 - Prisma client connected to Supabase
+INFO:     127.0.0.1:63277 - "POST /api/auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63529 - "OPTIONS /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63529 - "POST /api/auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:63730 - "POST /api/auth/register HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63842 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63857 - "GET /api/auth/verify HTTP/1.1" 200 OK
