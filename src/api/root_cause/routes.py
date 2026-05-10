@@ -383,7 +383,8 @@ async def save_all(
                 body_value,
                 token_value,
             )
-            raise HTTPException(status_code=403, detail="Request identity does not match authenticated user")
+            # Legacy clients may still send stale identity values; ignore them
+            # and continue using the verified JWT claims.
 
     try:
         db = get_prisma()
