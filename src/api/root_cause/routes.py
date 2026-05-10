@@ -1,12 +1,15 @@
 """Root cause analysis routes and handlers."""
 
 import json
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 
 from ..services import APIService
 from ...database.save_analysis import AnalysisSaver
 from ...database.supabase_save import SupabaseSaver
+from ...utils.auth import decode_access_token
+from ...database.prisma_client import get_prisma
 from ...llm.prompts import (
     get_finalize_analysis_prompt,
     get_generate_five_why_prompt,
@@ -437,22 +440,99 @@ async def save_all(request: SaveAllRequest):
 # ---------------------------------------------------------------------------
 
 @router.post("/history", response_model=HistoryResponse)
-async def get_history(request: HistoryRequest):
+async def get_history(
+    request: Optional[HistoryRequest] = None,
+    authorization: Optional[str] = Header(None),
+):
     """
     Fetch saved analysis history from Supabase for the given user.
+    
+    JWT token verification:
+    - Extracts Bearer token from Authorization header
+    - Verifies token and extracts user_id, org_id, and master_user_id
+    - Uses the JWT claims as the source of truth for history visibility
 
-    If the user is the master user for the org (`user_id == master_user_id`),
-    they receive all saved sessions in the organization.
-    Otherwise, they receive only their own saved sessions.
+    The optional request body is kept only for backward compatibility.
     """
-    logger.info("History fetch requested for user=%s, org=%s", request.user_id, request.org_id)
+    # ── 1. Verify JWT token ────────────────────────────────────────────
+    if not authorization or not authorization.startswith("Bearer "):
+        logger.warning("History request missing or invalid Authorization header")
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    
+    token = authorization.split(" ")[1]
+    payload = decode_access_token(token)
+    
+    if not payload:
+        logger.warning("History request with invalid/expired JWT token")
+        raise HTTPException(status_code=401, detail="Invalid or expired JWT token")
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        logger.warning("JWT token missing 'sub' claim")
+        raise HTTPException(status_code=401, detail="Invalid JWT token: missing user info")
+    
+    org_id = payload.get("org_id")
+    master_user_id = payload.get("master_user_id")
+
+    if not org_id or not master_user_id:
+        logger.warning("JWT token missing required org claims")
+        raise HTTPException(status_code=401, detail="Invalid JWT token: missing organization info")
+
+    if request and request.org_id and request.org_id != org_id:
+        logger.warning(
+            "History request body org_id %s does not match JWT org_id %s",
+            request.org_id,
+            org_id,
+        )
+        raise HTTPException(status_code=403, detail="Request does not match authenticated organization")
+
+    # ── 2. Query database for user info ─────────────────────────────────
+    try:
+        db = get_prisma()
+        user = db.user.find_unique(where={"id": user_id})
+        
+        if not user:
+            logger.warning(f"JWT token references non-existent user: {user_id}")
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        # Verify user belongs to the organization from the JWT
+        if user.orgId != org_id:
+            logger.warning(f"User {user_id} attempted to access org {org_id} but belongs to {user.orgId}")
+            raise HTTPException(status_code=403, detail="User does not belong to this organization")
+
+        # Keep token claims aligned with current database state
+        org = db.organization.find_unique(where={"id": org_id})
+        if not org:
+            logger.warning(f"Organization not found: {org_id}")
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        if org.masterUserId != master_user_id:
+            logger.warning(
+                "JWT master_user_id %s does not match current org master %s",
+                master_user_id,
+                org.masterUserId,
+            )
+            raise HTTPException(status_code=401, detail="Invalid JWT token: organization access changed")
+        
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Database lookup failed: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to verify user information")
+
+    # ── 3. Fetch history with verified credentials ─────────────────────
+    logger.info(
+        "History fetch requested for user=%s, org=%s (JWT verified)",
+        user_id,
+        org_id,
+    )
 
     try:
         sb_saver = SupabaseSaver()
         history_data = sb_saver.get_history(
-            user_id=request.user_id,
-            master_user_id=request.master_user_id,
-            org_id=request.org_id,
+            user_id=user_id,
+            master_user_id=master_user_id,
+            org_id=org_id,
         )
 
         return HistoryResponse(

@@ -197,9 +197,11 @@ class SaveAllResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class HistoryRequest(BaseModel):
-    """Payload to request the user's history."""
-    user_id: str
-    master_user_id: str
+    """Payload to request the user's history.
+    
+    JWT token is verified via Bearer token in Authorization header.
+    Only org_id is required in the body.
+    """
     org_id: str
 
 

@@ -74,8 +74,14 @@ async def register(request: RegisterRequest):
             data={"masterUserId": user_id}
         )
         
-        # 4. Create JWT token
-        token = create_access_token(data={"sub": user_id, "email": request.email})
+        # 4. Create JWT token with the claims needed by authenticated routes
+        token = create_access_token(data={
+            "sub": user_id,
+            "email": request.email,
+            "org_id": org_id,
+            "master_user_id": user_id,
+            "role": "admin",
+        })
         
         return {
             "token": token,
@@ -108,12 +114,18 @@ async def login(request: LoginRequest):
         if not verify_password(request.password, user.password):
             raise HTTPException(status_code=401, detail="Invalid email or password")
         
-        # Create JWT token
-        token = create_access_token(data={"sub": user.id, "email": user.email})
-        
         # Fetch org to get masterUserId
         org = db.organization.find_unique(where={"id": user.orgId})
         master_user_id = org.masterUserId if org else None
+
+        # Create JWT token with the claims needed by authenticated routes
+        token = create_access_token(data={
+            "sub": user.id,
+            "email": user.email,
+            "org_id": user.orgId,
+            "master_user_id": master_user_id,
+            "role": user.role,
+        })
 
         return {
             "token": token,

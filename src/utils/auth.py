@@ -47,3 +47,10 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
         return decoded_token
     except jwt.PyJWTError:
         return None
+
+def extract_user_id_from_token(token: str) -> Optional[str]:
+    """Extract user_id (sub claim) from JWT token."""
+    payload = decode_access_token(token)
+    if payload:
+        return payload.get("sub")
+    return None
