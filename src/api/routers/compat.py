@@ -103,8 +103,10 @@ async def register(request: RegisterRequest):
 async def login(request: LoginRequest):
     """Real login endpoint using Prisma and bcrypt."""
     try:
+        print(f"Attempting login for email: {request.email}")
         db = get_prisma()
         # Find user by email
+        print(f"Looking up user by email: {request.email}")
         user = db.user.find_unique(where={"email": request.email})
         
         if not user or not user.password:

@@ -48,6 +48,22 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
     except jwt.PyJWTError:
         return None
 
+def extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    """Extract the raw token from a Bearer Authorization header."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    parts = authorization.split(" ", 1)
+    if len(parts) != 2 or not parts[1]:
+        return None
+    return parts[1].strip()
+
+def get_token_claims_from_bearer(authorization: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Decode a Bearer token and return its claims if valid."""
+    token = extract_bearer_token(authorization)
+    if not token:
+        return None
+    return decode_access_token(token)
+
 def extract_user_id_from_token(token: str) -> Optional[str]:
     """Extract user_id (sub claim) from JWT token."""
     payload = decode_access_token(token)

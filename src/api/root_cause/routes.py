@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException, Header
 from ..services import APIService
 from ...database.save_analysis import AnalysisSaver
 from ...database.supabase_save import SupabaseSaver
-from ...utils.auth import decode_access_token
+from ...utils.auth import get_token_claims_from_bearer
 from ...database.prisma_client import get_prisma
 from ...llm.prompts import (
     get_finalize_analysis_prompt,
@@ -441,7 +441,7 @@ async def save_all(request: SaveAllRequest):
 
 @router.post("/history", response_model=HistoryResponse)
 async def get_history(
-    request: Optional[HistoryRequest] = None,
+    request = None,
     authorization: Optional[str] = Header(None),
 ):
     """
@@ -459,8 +459,7 @@ async def get_history(
         logger.warning("History request missing or invalid Authorization header")
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
     
-    token = authorization.split(" ")[1]
-    payload = decode_access_token(token)
+    payload = get_token_claims_from_bearer(authorization)
     
     if not payload:
         logger.warning("History request with invalid/expired JWT token")
