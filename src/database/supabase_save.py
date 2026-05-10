@@ -156,26 +156,43 @@ class SupabaseSaver:
             where_clause["userId"] = user_id
 
         try:
-            sessions = db.savedishikawa.find_many(
+            sessions = db.analysissession.find_many(
                 where=where_clause,
                 order={"createdAt": "desc"},
+                include={
+                    "savedIshikawa":True,
+                    "savedFiveWhys":True
+                }
             )
             
             print("Ishikawa",sessions)
             
             results = []
+
             for session in sessions:
-                # Get the first/latest Ishikawa and FiveWhys for this session
                 ishikawa_records = session.savedIshikawa or []
                 five_whys_records = session.savedFiveWhys or []
-                
+
                 ishi = ishikawa_records[0] if ishikawa_records else None
                 fw = five_whys_records[0] if five_whys_records else None
-                
-                # Parse JSON strings back to lists
-                ishi_data = json.loads(ishi.data) if ishi and isinstance(ishi.data, str) else []
-                fw_data = json.loads(fw.data) if fw and isinstance(fw.data, str) else []
-                
+
+                # Handle both string JSON and already-parsed objects
+                if ishi:
+                    if isinstance(ishi.data, str):
+                        ishi_data = json.loads(ishi.data)
+                    else:
+                        ishi_data = ishi.data
+                else:
+                    ishi_data = []
+
+                if fw:
+                    if isinstance(fw.data, str):
+                        fw_data = json.loads(fw.data)
+                    else:
+                        fw_data = fw.data
+                else:
+                    fw_data = []
+
                 results.append({
                     "session_id": session.id,
                     "query": session.query,
@@ -187,6 +204,7 @@ class SupabaseSaver:
                     "ishikawa": ishi_data,
                     "five_whys": fw_data,
                 })
+
             return results
             
         except Exception as exc:
