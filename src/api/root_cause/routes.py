@@ -321,7 +321,10 @@ async def finalize_analysis(request: RootCauseFinalizeRequest):
 # ---------------------------------------------------------------------------
 
 @router.post("/save", response_model=SaveAllResponse)
-async def save_all(request: SaveAllRequest):
+async def save_all(
+    request: SaveAllRequest,
+    authorization: Optional[str] = Header(None),
+):
     """
     Save a finalized Ishikawa + 5-Whys analysis.
 
@@ -349,6 +352,73 @@ async def save_all(request: SaveAllRequest):
         request.domain,
         request.query[:80],
     )
+
+    payload = get_token_claims_from_bearer(authorization)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
+    user_id = payload.get("sub")
+    org_id = payload.get("org_id")
+    master_user_id = payload.get("master_user_id")
+
+    if not user_id or not org_id or not master_user_id:
+        raise HTTPException(status_code=401, detail="Invalid JWT token: missing required claims")
+
+    body_identity = {
+        "user_id": request.user_id,
+        "org_id": request.org_id,
+        "master_user_id": request.master_user_id,
+    }
+    token_identity = {
+        "user_id": user_id,
+        "org_id": org_id,
+        "master_user_id": master_user_id,
+    }
+    for field_name, body_value in body_identity.items():
+        token_value = token_identity[field_name]
+        if body_value and body_value != token_value:
+            logger.warning(
+                "Save All request %s mismatch: body=%s token=%s",
+                field_name,
+                body_value,
+                token_value,
+            )
+            raise HTTPException(status_code=403, detail="Request identity does not match authenticated user")
+
+    try:
+        db = get_prisma()
+        user = db.user.find_unique(where={"id": user_id})
+        if not user:
+            logger.warning("Save All JWT references non-existent user: %s", user_id)
+            raise HTTPException(status_code=401, detail="User not found")
+
+        if user.orgId != org_id:
+            logger.warning(
+                "Save All user %s belongs to org %s but token requested org %s",
+                user_id,
+                user.orgId,
+                org_id,
+            )
+            raise HTTPException(status_code=403, detail="User does not belong to this organization")
+
+        org = db.organization.find_unique(where={"id": org_id})
+        if not org:
+            logger.warning("Save All organization not found: %s", org_id)
+            raise HTTPException(status_code=404, detail="Organization not found")
+
+        resolved_master_user_id = org.masterUserId or user_id
+        if master_user_id != resolved_master_user_id:
+            logger.warning(
+                "Save All master_user_id %s replaced with current org master %s",
+                master_user_id,
+                resolved_master_user_id,
+            )
+            master_user_id = resolved_master_user_id
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Save All identity verification failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to verify identity: {exc}")
 
     # ── 1. Neo4j write ─────────────────────────────────────────────────
     neo4j_result: dict = {}
@@ -385,30 +455,23 @@ async def save_all(request: SaveAllRequest):
         "skipped": True,
     }
 
-    has_identity = all([request.user_id, request.master_user_id, request.org_id])
-    if has_identity:
-        try:
-            sb_saver = SupabaseSaver()
-            supabase_result = sb_saver.save_analysis(
-                user_id=request.user_id,
-                master_user_id=request.master_user_id,
-                org_id=request.org_id,
-                query=request.query,
-                domain=request.domain,
-                past_record=request.past_record,
-                session_title=request.session_title,
-                ishikawa=request.ishikawa,
-                five_whys=request.analysis,
-            )
-        except Exception as exc:
-            # Non-fatal — Neo4j data is already saved.
-            logger.error("Supabase save failed (non-fatal): %s", exc)
-            supabase_result["skipped"] = True
-    else:
-        logger.debug(
-            "Supabase identity not provided (user_id/master_user_id/org_id missing) "
-            "— skipping Supabase save."
+    try:
+        sb_saver = SupabaseSaver()
+        supabase_result = sb_saver.save_analysis(
+            user_id=user_id,
+            master_user_id=master_user_id,
+            org_id=org_id,
+            query=request.query,
+            domain=request.domain,
+            past_record=request.past_record,
+            session_title=request.session_title,
+            ishikawa=request.ishikawa,
+            five_whys=request.analysis,
         )
+    except Exception as exc:
+        # Non-fatal — Neo4j data is already saved.
+        logger.error("Supabase save failed (non-fatal): %s", exc)
+        supabase_result["skipped"] = True
 
     # ── 3. Build response ───────────────────────────────────────────────
     sb_skipped = supabase_result.get("skipped", True)
@@ -498,7 +561,7 @@ async def get_history(
         if user.orgId != org_id:
             logger.warning(f"User {user_id} attempted to access org {org_id} but belongs to {user.orgId}")
             raise HTTPException(status_code=403, detail="User does not belong to this organization")
-
+        print(f"User {user_id} verified for org {org_id} with master user {master_user_id}")
         # Keep token claims aligned with current database state
         org = db.organization.find_unique(where={"id": org_id})
         if not org:

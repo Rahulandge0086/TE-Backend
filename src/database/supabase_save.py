@@ -156,14 +156,12 @@ class SupabaseSaver:
             where_clause["userId"] = user_id
 
         try:
-            sessions = db.analysissession.find_many(
+            sessions = db.savedishikawa.find_many(
                 where=where_clause,
                 order={"createdAt": "desc"},
-                include={
-                    "savedIshikawa": True,
-                    "savedFiveWhys": True,
-                }
             )
+            
+            print("Ishikawa",sessions)
             
             results = []
             for session in sessions:

@@ -152,9 +152,9 @@ class SaveAllRequest(BaseModel):
     """
     Payload for POST /api/save.
 
-    Contains the finalized Ishikawa and 5-Whys data plus the Supabase identity
-    triplet needed to populate the saved_ishikawa / saved_five_whys rows with
-    correct user_id, master_user_id, and org_id.
+    Contains the finalized Ishikawa and 5-Whys data. Identity is resolved from
+    the authenticated JWT and the body identity fields are kept only for legacy
+    compatibility checks.
     """
 
     # Core analysis (mirrors RootCauseFinalizeRequest fields)
@@ -163,8 +163,8 @@ class SaveAllRequest(BaseModel):
     ishikawa: List[Any]                     # IshikawaCategory[]
     analysis: List[Any]                     # FiveWhyChainItem[]
 
-    # Supabase identity triplet (optional — saves still go to Neo4j without them)
-    user_id: Optional[str] = None           # Supabase auth.users.id of the calling user
+    # Legacy-compatible identity fields. The JWT is the source of truth.
+    user_id: Optional[str] = None           # users.id of the calling user
     master_user_id: Optional[str] = None    # org's master user UUID
     org_id: Optional[str] = None           # organization UUID
 
